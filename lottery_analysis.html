@@ -1,0 +1,478 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>排列三数据分析助手</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js">
+    <!-- 引入 Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f3f4f6;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        .ball {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            font-weight: bold;
+            color: white;
+            margin: 0 2px;
+        }
+        .ball-red { background-color: #ef4444; }
+        .ball-blue { background-color: #3b82f6; }
+        .ball-green { background-color: #10b981; }
+        
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c1c1c1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8; 
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <!-- 导航栏 -->
+    <nav class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <i class="fa-solid fa-chart-line text-2xl">
+                <h1 class="text-xl font-bold tracking-wide">排列三数据分析助手</h1>
+            </div>
+            <div class="text-sm opacity-80">
+                <i class="fa-solid fa-circle-info mr-1"></i> 仅供娱乐参考，理性购彩
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- 左侧：控制面板与生成器 -->
+        <div class="lg:col-span-4 space-y-6">
+            
+            <!-- 数据生成控制 -->
+            <div class="card p-6">
+                <h2 class="text-lg font-semibold mb-4 border-b pb-2 text-indigo-700">
+                    <i class="fa-solid fa-database mr-2"></i>历史数据模拟
+                </h2>
+                <p class="text-xs text-gray-500 mb-4">由于无法实时连接体彩中心接口，此处使用算法生成符合统计规律的模拟历史数据用于演示分析功能。</p>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">模拟期数</label>
+                        <input type="number" id="historyCount" value="100" min="10" max="500" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <button onclick="generateData()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition duration-200 flex items-center justify-center">
+                        <i class="fa-solid fa-rotate mr-2"></i> 重新生成并分析
+                    </button>
+                </div>
+            </div>
+
+            <!-- 智能选号器 -->
+            <div class="card p-6">
+                <h2 class="text-lg font-semibold mb-4 border-b pb-2 text-indigo-700">
+                    <i class="fa-solid fa-wand-magic-sparkles mr-2"></i>辅助选号策略
+                </h2>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">选择策略</label>
+                        <select id="strategySelect" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="random">完全随机 (均衡分布)</option>
+                            <option value="hot">追热号 (近期高频)</option>
+                            <option value="cold">博冷号 (长期遗漏)</option>
+                            <option value="odd_even">奇偶平衡 (2:1 或 1:2)</option>
+                            <option value="sum_value">和值居中 (10-17)</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">生成注数</label>
+                        <input type="number" id="generateCount" value="5" min="1" max="20" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+
+                    <button onclick="generatePrediction()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md transition duration-200 flex items-center justify-center">
+                        <i class="fa-solid fa-ticket mr-2"></i> 生成推荐号码
+                    </button>
+                </div>
+
+                <!-- 推荐结果展示区 -->
+                <div id="predictionResult" class="mt-6 hidden">
+                    <h3 class="text-sm font-bold text-gray-600 mb-2">推荐号码:</h3>
+                    <div id="predictionList" class="space-y-2 max-h-60 overflow-y-auto pr-2">
+                        <!-- 动态插入 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 免责声明 -->
+            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 text-sm text-yellow-700">
+                <p class="font-bold">重要提示：</p>
+                <p>彩票开奖是独立随机事件。本工具仅基于历史数据进行统计展示，没有任何算法能保证中奖。请理性购彩，量力而行。</p>
+            </div>
+        </div>
+
+        <!-- 右侧：数据可视化与分析 -->
+        <div class="lg:col-span-8 space-y-6">
+            
+            <!-- 统计概览卡片 -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="card p-4 text-center">
+                    <div class="text-gray-500 text-sm">当前模拟最新期</div>
+                    <div class="text-2xl font-bold text-indigo-600" id="latestIssue">--</div>
+                </div>
+                <div class="card p-4 text-center">
+                    <div class="text-gray-500 text-sm">最热数字 (近50期)</div>
+                    <div class="text-2xl font-bold text-red-500" id="hotNumber">--</div>
+                </div>
+                <div class="card p-4 text-center">
+                    <div class="text-gray-500 text-sm">最大遗漏数字</div>
+                    <div class="text-2xl font-bold text-blue-500" id="coldNumber">--</div>
+                </div>
+            </div>
+
+            <!-- 图表区域 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- 号码频率分布 -->
+                <div class="card p-4">
+                    <h3 class="text-md font-semibold mb-4 text-gray-700">百十个位号码频率分布</h3>
+                    <canvas id="frequencyChart"></canvas>
+                </div>
+                <!-- 和值走势 -->
+                <div class="card p-4">
+                    <h3 class="text-md font-semibold mb-4 text-gray-700">近20期和值走势</h3>
+                    <canvas id="sumChart"></canvas>
+                </div>
+            </div>
+
+            <!-- 历史开奖列表 -->
+            <div class="card p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-700">近期开奖记录</h3>
+                    <span class="text-xs text-gray-500">显示最近 20 期</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">期号</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">开奖号码</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">形态</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">和值</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">跨度</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody" class="bg-white divide-y divide-gray-200">
+                            <!-- 动态插入 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-gray-800 text-white py-6 mt-8">
+        <div class="container mx-auto px-4 text-center">
+            <p class="text-sm opacity-60">© 2026 排列三数据分析助手 | 本站不提供彩票购买服务</p>
+        </div>
+    </footer>
+
+    <script>
+        // 全局变量存储数据
+        let historyData = [];
+        let frequencyChartInstance = null;
+        let sumChartInstance = null;
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            generateData();
+        });
+
+        // 生成模拟历史数据
+        function generateData() {
+            const count = parseInt(document.getElementById('historyCount').value) || 100;
+            historyData = [];
+            const today = new Date();
+            
+            // 生成指定数量的历史数据
+            for (let i = 0; i < count; i++) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                const issueDate = date.toISOString().split('T').replace(/-/g, '');
+                const issueNum = 2026000 + count - i; // 模拟期号
+                
+                // 随机生成3个号码 (0-9)
+                const n1 = Math.floor(Math.random() * 10);
+                const n2 = Math.floor(Math.random() * 10);
+                const n3 = Math.floor(Math.random() * 10);
+                
+                const sum = n1 + n2 + n3;
+                const span = Math.max(n1, n2, n3) - Math.min(n1, n2, n3);
+                
+                // 判断形态
+                let type = '组六';
+                if (n1 === n2 && n2 === n3) type = '豹子';
+                else if (n1 === n2 || n2 === n3 || n1 === n3) type = '组三';
+
+                historyData.push({
+                    issue: issueNum.toString(),
+                    date: date.toLocaleDateString(),
+                    numbers: [n1, n2, n3],
+                    sum: sum,
+                    span: span,
+                    type: type,
+                    oddEven: `${[n1,n2,n3].filter(n=>n%2!==0).length}奇${[n1,n2,n3].filter(n=>n%2===0).length}偶`,
+                    bigSmall: `${[n1,n2,n3].filter(n=>n>=5).length}大${[n1,n2,n3].filter(n=>n<5).length}小`
+                });
+            }
+
+            updateUI();
+        }
+
+        // 更新界面所有部分
+        function updateUI() {
+            updateStats();
+            renderTable();
+            renderCharts();
+            document.getElementById('predictionResult').classList.add('hidden');
+        }
+
+        // 更新统计概览
+        function updateStats() {
+            if (historyData.length === 0) return;
+
+            // 最新期
+            document.getElementById('latestIssue').innerText = historyData.issue;
+
+            // 计算近50期频率
+            const recent50 = historyData.slice(0, 50);
+            const freq = new Array(10).fill(0);
+            recent50.forEach(item => {
+                item.numbers.forEach(n => freq[n]++);
+            });
+            
+            // 最热
+            let maxFreq = -1;
+            let hotNums = [];
+            freq.forEach((count, num) => {
+                if (count > maxFreq) {
+                    maxFreq = count;
+                    hotNums = [num];
+                } else if (count === maxFreq) {
+                    hotNums.push(num);
+                }
+            });
+            document.getElementById('hotNumber').innerText = hotNums.join(', ');
+
+            // 计算遗漏 (简单版：看最近10期没出现的)
+            const recent10Nums = new Set();
+            historyData.slice(0, 10).forEach(item => item.numbers.forEach(n => recent10Nums.add(n)));
+            const missingNums = [];
+            for(let i=0; i<=9; i++) {
+                if(!recent10Nums.has(i)) missingNums.push(i);
+            }
+            document.getElementById('coldNumber').innerText = missingNums.length > 0 ? missingNums.join(', ') : '无';
+        }
+
+        // 渲染表格
+        function renderTable() {
+            const tbody = document.getElementById('historyTableBody');
+            tbody.innerHTML = '';
+            
+            // 只显示前20条
+            const displayData = historyData.slice(0, 20);
+            
+            displayData.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-50 transition";
+                
+                const numsHtml = item.numbers.map((n, idx) => {
+                    let colorClass = 'ball-red';
+                    if (idx === 1) colorClass = 'ball-blue';
+                    if (idx === 2) colorClass = 'ball-green';
+                    return `<span class="ball ${colorClass}">${n}</span>`;
+                }).join('');
+
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.issue}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${numsHtml}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                            ${item.type}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.sum}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.span}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 渲染图表
+        function renderCharts() {
+            // 1. 频率分布图 (百十个位合并统计)
+            const freqCtx = document.getElementById('frequencyChart').getContext('2d');
+            const freqData = new Array(10).fill(0);
+            historyData.slice(0, 50).forEach(item => {
+                item.numbers.forEach(n => freqData[n]++);
+            });
+
+            if (frequencyChartInstance) frequencyChartInstance.destroy();
+            
+            frequencyChartInstance = new Chart(freqCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'],
+                    datasets: [{
+                        label: '出现次数 (近50期)',
+                        data: freqData,
+                        backgroundColor: 'rgba(79, 70, 229, 0.6)',
+                        borderColor: 'rgba(79, 70, 229, 1)',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+
+            // 2. 和值走势图
+            const sumCtx = document.getElementById('sumChart').getContext('2d');
+            const recent20 = historyData.slice(0, 20).reverse(); // 图表从左到右时间递增
+            
+            if (sumChartInstance) sumChartInstance.destroy();
+
+            sumChartInstance = new Chart(sumCtx, {
+                type: 'line',
+                data: {
+                    labels: recent20.map(d => d.issue.substr(-4)),
+                    datasets: [{
+                        label: '和值',
+                        data: recent20.map(d => d.sum),
+                        borderColor: 'rgba(16, 185, 129, 1)',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.3,
+                        fill: true,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { min: 0, max: 27 }
+                    }
+                }
+            });
+        }
+
+        // 生成预测号码
+        function generatePrediction() {
+            const strategy = document.getElementById('strategySelect').value;
+            const count = parseInt(document.getElementById('generateCount').value) || 5;
+            const resultContainer = document.getElementById('predictionResult');
+            const listContainer = document.getElementById('predictionList');
+            
+            listContainer.innerHTML = '';
+            resultContainer.classList.remove('hidden');
+
+            // 计算基础统计数据用于策略
+            const freq = new Array(10).fill(0);
+            historyData.slice(0, 50).forEach(item => item.numbers.forEach(n => freq[n]++));
+            
+            // 排序获取热号和冷号索引
+            const sortedByHot = [...Array(10).keys()].sort((a,b) => freq[b] - freq[a]); // 热 -> 冷
+            const sortedByCold = [...Array(10).keys()].sort((a,b) => freq[a] - freq[b]); // 冷 -> 热
+
+            for (let i = 0; i < count; i++) {
+                let nums = [];
+                
+                if (strategy === 'random') {
+                    nums = [Math.floor(Math.random()*10), Math.floor(Math.random()*10), Math.floor(Math.random()*10)];
+                } 
+                else if (strategy === 'hot') {
+                    // 从最热的5个数字里选
+                    const pool = sortedByHot.slice(0, 5);
+                    nums = [pool[Math.floor(Math.random()*pool.length)], pool[Math.floor(Math.random()*pool.length)], pool[Math.floor(Math.random()*pool.length)]];
+                }
+                else if (strategy === 'cold') {
+                    // 从最冷的5个数字里选
+                    const pool = sortedByCold.slice(0, 5);
+                    nums = [pool[Math.floor(Math.random()*pool.length)], pool[Math.floor(Math.random()*pool.length)], pool[Math.floor(Math.random()*pool.length)]];
+                }
+                else if (strategy === 'odd_even') {
+                    // 强制 2奇1偶 或 1奇2偶
+                    const isOddMajor = Math.random() > 0.5;
+                    const odds = [1,3,5,7,9];
+                    const evens = [0,2,4,6,8];
+                    if (isOddMajor) {
+                        nums = [odds[Math.floor(Math.random()*5)], odds[Math.floor(Math.random()*5)], evens[Math.floor(Math.random()*5)]];
+                    } else {
+                        nums = [evens[Math.floor(Math.random()*5)], evens[Math.floor(Math.random()*5)], odds[Math.floor(Math.random()*5)]];
+                    }
+                }
+                else if (strategy === 'sum_value') {
+                    // 重试直到和值在 10-17 之间
+                    let valid = false;
+                    while(!valid) {
+                        nums = [Math.floor(Math.random()*10), Math.floor(Math.random()*10), Math.floor(Math.random()*10)];
+                        const s = nums+nums+nums;
+                        if (s >= 10 && s <= 17) valid = true;
+                    }
+                }
+
+                // 渲染单个推荐项
+                const div = document.createElement('div');
+                div.className = "flex items-center justify-between bg-gray-50 p-2 rounded border border-gray-200";
+                
+                const sum = nums.reduce((a,b)=>a+b, 0);
+                const span = Math.max(...nums) - Math.min(...nums);
+                
+                div.innerHTML = `
+                    <div class="flex space-x-2">
+                        <span class="ball ball-red">${nums}</span>
+                        <span class="ball ball-blue">${nums}</span>
+                        <span class="ball ball-green">${nums}</span>
+                    </div>
+                    <div class="text-xs text-gray-500 space-x-2">
+                        <span>和:${sum}</span>
+                        <span>跨:${span}</span>
+                    </div>
+                `;
+                listContainer.appendChild(div);
+            }
+        }
+    </script>
+</body>
+</html>
